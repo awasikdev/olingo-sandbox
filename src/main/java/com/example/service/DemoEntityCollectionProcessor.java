@@ -1,5 +1,6 @@
 package com.example.service;
 
+import com.example.data.Storage;
 import org.apache.olingo.commons.api.data.*;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
@@ -26,78 +27,49 @@ public class DemoEntityCollectionProcessor implements EntityCollectionProcessor 
 
     private OData odata;
     private ServiceMetadata serviceMetadata;
+    private Storage storage;
+
+    public DemoEntityCollectionProcessor(Storage storage) {
+        this.storage = storage;
+    }
 
     @Override
     public void readEntityCollection(ODataRequest request, ODataResponse response, UriInfo uriInfo, ContentType responseFormat)
             throws ODataApplicationException, SerializerException {
 
-        // 1st we have retrieve the requested EntitySet from the uriInfo object (representation of the parsed service URI)
+        // 1st retrieve the requested EntitySet from the uriInfo (representation of the parsed URI)
         List<UriResource> resourcePaths = uriInfo.getUriResourceParts();
-        UriResourceEntitySet uriResourceEntitySet = (UriResourceEntitySet) resourcePaths.get(0); // in our example, the first segment is the EntitySet
+        // in our example, the first segment is the EntitySet
+        UriResourceEntitySet uriResourceEntitySet = (UriResourceEntitySet) resourcePaths.get(0);
         EdmEntitySet edmEntitySet = uriResourceEntitySet.getEntitySet();
 
-        // 2nd: fetch the data from backend for this requested EntitySetName
-        // it has to be delivered as EntitySet object
-        EntityCollection entitySet = getData(edmEntitySet);
+        // 2nd: fetch the data from backend for this requested EntitySetName and deliver as EntitySet
+        EntityCollection entityCollection = storage.readEntitySetData(edmEntitySet);
 
         // 3rd: create a serializer based on the requested format (json)
         ODataSerializer serializer = odata.createSerializer(responseFormat);
 
-        // 4th: Now serialize the content: transform from the EntitySet object to InputStream
+        // and serialize the content: transform from the EntitySet object to InputStream
         EdmEntityType edmEntityType = edmEntitySet.getEntityType();
         ContextURL contextUrl = ContextURL.with().entitySet(edmEntitySet).build();
 
         final String id = request.getRawBaseUri() + "/" + edmEntitySet.getName();
-        EntityCollectionSerializerOptions opts = EntityCollectionSerializerOptions.with().id(id).contextURL(contextUrl).build();
-        SerializerResult serializerResult = serializer.entityCollection(serviceMetadata, edmEntityType, entitySet, opts);
+        EntityCollectionSerializerOptions opts =
+                EntityCollectionSerializerOptions.with().id(id).contextURL(contextUrl).build();
+        SerializerResult serializerResult = serializer.entityCollection(serviceMetadata, edmEntityType, entityCollection, opts);
         InputStream serializedContent = serializerResult.getContent();
 
-        // Finally: configure the response object: set the body, headers and status code
+        // 4th: configure the response object: set the body, headers and status code
         response.setContent(serializedContent);
         response.setStatusCode(HttpStatusCode.OK.getStatusCode());
         response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
+
     }
 
     @Override
     public void init(OData odata, ServiceMetadata serviceMetadata) {
         this.odata = odata;
         this.serviceMetadata = serviceMetadata;
-    }
-
-    private EntityCollection getData(EdmEntitySet edmEntitySet){
-
-        EntityCollection productsCollection = new EntityCollection();
-        // check for which EdmEntitySet the data is requested
-        if(DemoEdmProvider.ES_PRODUCTS_NAME.equals(edmEntitySet.getName())) {
-            List<Entity> productList = productsCollection.getEntities();
-
-            // add some sample product entities
-            final Entity e1 = new Entity()
-                    .addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 1))
-                    .addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Notebook Basic 15"))
-                    .addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                            "Notebook Basic, 1.7GHz - 15 XGA - 1024MB DDR2 SDRAM - 40GB"));
-            e1.setId(createId("Products", 1));
-            productList.add(e1);
-
-            final Entity e2 = new Entity()
-                    .addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 2))
-                    .addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "1UMTS PDA"))
-                    .addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                            "Ultrafast 3G UMTS/HSDPA Pocket PC, supports GSM network"));
-            e2.setId(createId("Products", 1));
-            productList.add(e2);
-
-            final Entity e3 = new Entity()
-                    .addProperty(new Property(null, "ID", ValueType.PRIMITIVE, 3))
-                    .addProperty(new Property(null, "Name", ValueType.PRIMITIVE, "Ergo Screen"))
-                    .addProperty(new Property(null, "Description", ValueType.PRIMITIVE,
-                            "19 Optimum Resolution 1024 x 768 @ 85Hz, resolution 1280 x 960"));
-            e3.setId(createId("Products", 1));
-            productList.add(e3);
-        }
-
-        return productsCollection;
     }
 
     private URI createId(String entitySetName, Object id) {

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="DemoService [mvn,tomcat7:run-war]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
+  <configuration default="false" name="DemoService [tomcat7:run-war]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
@@ -10,7 +10,6 @@
           </option>
           <option name="goals">
             <list>
-              <option value="mvn" />
               <option value="tomcat7:run-war" />
             </list>
           </option>
